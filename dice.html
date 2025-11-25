@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ultimate Dice Lab — Quantum Edition</title>
+<link rel="icon" type="image/x-icon" href="diceico.ico">
+
+  <!-- Tailwind (play CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <script>
+    tailwind.config = { darkMode: 'class' }
+  </script>
+
+  <style>
+    :root {
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      --bg-main: #020617; 
+      --bg-card: #0f172a;
+      --bg-card-gradient: linear-gradient(145deg, #1e293b, #0f172a);
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8; 
+      --border-color: #334155; 
+      --shadow-color: rgba(0,0,0,0.5);
+      --accent-primary: #6366f1;
+      --accent-primary-hover: #4f46e5;
+      --accent-secondary: #ec4899;
+      --accent-glow: rgba(99, 102, 241, 0.5);
+      --border-glow-color: rgba(99, 102, 241, 0.3);
+    }
+    html.light {
+      --bg-main: #f1f5f9; 
+      --bg-card: #ffffff;
+      --bg-card-gradient: linear-gradient(145deg, #ffffff, #f8fafc);
+      --text-main: #0f172a;
+      --text-muted: #64748b; 
+      --border-color: #e2e8f0; 
+      --shadow-color: rgba(0,0,0,0.1);
+      --accent-primary: #4f46e5;
+      --accent-primary-hover: #4338ca;
+      --accent-secondary: #db2777;
+      --accent-glow: rgba(79, 70, 229, 0.4);
+      --border-glow-color: rgba(79, 70, 229, 0.2);
+    }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-main);
+      background-image: radial-gradient(circle at 1px 1px, var(--border-color) 1px, transparent 0);
+      background-size: 2.5rem 2.5rem;
+      color: var(--text-main);
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 25px -5px var(--shadow-color);
+      transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+      border-radius: 1.25rem;
+    }
+    @media (min-width: 1024px) {
+      .card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px -10px var(--shadow-color), 0 0 20px var(--border-glow-color); }
+    }
+    .btn { transition: transform 0.15s ease, background-color 0.2s, color 0.2s, box-shadow 0.2s, border-color 0.2s; -webkit-tap-highlight-color: transparent; }
+    .btn:hover { transform: translateY(-3px); }
+    .btn:active { transform: scale(0.98) translateY(0); }
+    .btn-primary { background-color: var(--accent-primary); color: white; }
+    .btn-primary:hover { background-color: var(--accent-primary-hover); box-shadow: 0 0 20px var(--accent-glow); }
+    .btn-secondary { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-muted); }
+    .btn-secondary:hover { border-color: var(--accent-primary); color: var(--text-main); background-color: var(--border-glow-color); }
+    
+    /* ========== Responsive & Adaptive 3D Dice Styles ========== */
+    .scene { perspective: 1400px; }
+    .cube-wrapper { display: flex; flex-direction: column; align-items: center; }
+    .cube, .poly-dice { transition: transform 1.5s cubic-bezier(.17,1.57,.54,1.06); transform-style: preserve-3d; }
+    
+    /* Responsive sizing for dice */
+    :root { --dice-size: clamp(60px, 15vw, 120px); --pip-size: calc(var(--dice-size) * 0.15); --face-padding: calc(var(--dice-size) * 0.12); --border-radius: calc(var(--dice-size) * 0.15); --translateZ: calc(var(--dice-size) / 2); }
+    
+    .cube { width: var(--dice-size); height: var(--dice-size); position: relative; }
+    .face {
+      position: absolute; width: var(--dice-size); height: var(--dice-size); display: grid; grid-template-columns: repeat(3,1fr); padding: var(--face-padding); gap: calc(var(--dice-size) * 0.08); backface-visibility: hidden; border-radius: var(--border-radius);
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    }
+    .face::before { content: ''; position: absolute; inset: 0; border-radius: var(--border-radius); background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2), transparent); }
+    html.light .face::before { background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), transparent); }
+    .pip { width: var(--pip-size); height: var(--pip-size); border-radius: 50%; margin: auto; transition: background-color 0.3s; }
+    .f1{transform:translateZ(var(--translateZ))} .f2{transform:rotateY(90deg) translateZ(var(--translateZ))} .f3{transform:rotateY(180deg) translateZ(var(--translateZ))} .f4{transform:rotateY(-90deg) translateZ(var(--translateZ))} .f5{transform:rotateX(90deg) translateZ(var(--translateZ))} .f6{transform:rotateX(-90deg) translateZ(var(--translateZ))}
+    .poly-dice { font-size: calc(var(--dice-size) / 2.5); font-weight: bold; width: var(--dice-size); height: var(--dice-size); display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: inset 0 0 10px rgba(0,0,0,0.3); }
+    .poly-dice::before { content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent); }
+    
+    .dice-shadow { width: var(--dice-size); height: calc(var(--dice-size) * 0.13); border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,0.4), transparent 70%); transition: transform 0.5s, opacity 0.5s, filter 0.5s; margin-top: calc(var(--dice-size) * 0.1); }
+    .rolling .dice-shadow { opacity: 0.3; transform: scale(0.7); filter: blur(6px); }
+
+    /* ========== THEME STYLES (Unchanged) ========== */
+    .poly-dice.theme-classic { background: radial-gradient(circle, #fff, #e0e0e0); color: #111; }
+    .cube.theme-classic .face { background-color: #fff; border: 1px solid #ccc; }
+    .cube.theme-classic .pip { background-color: #111; }
+    @keyframes neon-flicker { 0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { box-shadow: 0 0 20px #0ff, inset 0 0 8px #0ff; opacity: 1; } 20%, 24%, 55% { box-shadow: none; opacity: .7; } }
+    .poly-dice.theme-neon { background: radial-gradient(circle, #222, #000); color: #0ff; border: 2px solid #0ff; animation: neon-flicker 4s infinite; }
+    .cube.theme-neon .face { background-color: #1a1a1a; border: 1px solid #0ff; animation: neon-flicker 4s infinite; }
+    .cube.theme-neon .pip { background-color: #0ff; box-shadow: 0 0 8px #0ff; }
+    .poly-dice.theme-metallic { background: linear-gradient(145deg, #e0e0e0, #b0b0b0); color: #333; }
+    .cube.theme-metallic .face { background: linear-gradient(145deg, #e0e0e0, #b0b0b0); }
+    .cube.theme-metallic .pip { background-color: #333; }
+
+    /* ========== Quantum Loading Screen (Unchanged) ========== */
+    #loadingScreen { background-color: var(--bg-main); background-image: radial-gradient(circle at 1px 1px, var(--border-color) 1px, transparent 0); background-size: 2.5rem 2.5rem; } .loading-scene { perspective: 2000px; } .loading-atom { position: relative; width: 300px; height: 300px; transform-style: preserve-3d; } .core-cube { width: 80px; height: 80px; position: absolute; top: 110px; left: 110px; transform-style: preserve-3d; animation: spin-core 8s linear infinite; } .core-cube .face { width: 80px; height: 80px; border-radius: 12px; } .core-cube .pip { width: 12px; height: 12px; } .core-cube .f1{transform:translateZ(40px)} .core-cube .f2{transform:rotateY(90deg) translateZ(40px)} .core-cube .f3{transform:rotateY(180deg) translateZ(40px)} .core-cube .f4{transform:rotateY(-90deg) translateZ(40px)} .core-cube .f5{transform:rotateX(90deg) translateZ(40px)} .core-cube .f6{transform:rotateX(-90deg) translateZ(40px)} .orbit { position: absolute; inset: 0; transform-style: preserve-3d; border-radius: 50%; border: 1px dashed var(--border-color); } .orbit-1 { animation: orbit-1 10s linear infinite; } .orbit-2 { animation: orbit-2 12s linear infinite reverse; } .orbit-3 { animation: orbit-3 15s linear infinite; } .electron { position: absolute; left: 50%; top: -15px; margin-left: -15px; width: 30px; height: 30px; transform-style: preserve-3d; animation: spin-electron 2s linear infinite; } .electron-cube { width: 30px; height: 30px; transform-style: preserve-3d; } .electron-cube .face { width: 30px; height: 30px; padding: 4px; gap: 2px; border-radius: 6px; } .electron-cube .pip { width: 4px; height: 4px; } .electron-cube .f1{transform:translateZ(15px)} .electron-cube .f2{transform:rotateY(90deg) translateZ(15px)} .electron-cube .f3{transform:rotateY(180deg) translateZ(15px)} .electron-cube .f4{transform:rotateY(-90deg) translateZ(15px)} .electron-cube .f5{transform:rotateX(90deg) translateZ(15px)} .electron-cube .f6{transform:rotateX(-90deg) translateZ(15px)} @keyframes spin-core { from { transform: rotateX(0) rotateY(0); } to { transform: rotateX(360deg) rotateY(360deg); } } @keyframes spin-electron { from { transform: rotateY(0); } to { transform: rotateY(360deg); } } @keyframes orbit-1 { from { transform: rotate3d(1, 1, 0, 0); } to { transform: rotate3d(1, 1, 0, 360deg); } } @keyframes orbit-2 { from { transform: rotate3d(0, 1, 1, 0); } to { transform: rotate3d(0, 1, 1, 360deg); } } @keyframes orbit-3 { from { transform: rotate3d(1, 0, 1, 0); } to { transform: rotate3d(1, 0, 1, 360deg); } } #loading-progress-container { width: 300px; height: 4px; background-color: var(--border-color); border-radius: 99px; overflow: hidden; } #loading-progress-bar { width: 0; height: 100%; background-color: var(--accent-primary); border-radius: 99px; transition: width 0.1s linear; box-shadow: 0 0 10px var(--accent-glow); }
+    
+    /* ========== Glassmorphism Help Modal (Unchanged) ========== */
+    #help-modal-container { visibility: hidden; opacity: 0; transition: visibility 0s 0.3s, opacity 0.3s ease; } #help-modal-container.visible { visibility: visible; opacity: 1; transition: visibility 0s, opacity 0.3s ease; } #help-modal-backdrop { opacity: 0; transition: opacity 0.3s ease; } #help-modal-container.visible #help-modal-backdrop { opacity: 1; } #helpModal { opacity: 0; transform: scale(0.95); transition: opacity 0.3s ease, transform 0.3s ease; } #help-modal-container.visible #helpModal { opacity: 1; transform: scale(1); }
+
+    /* ========== Mobile Tab Navigation ========== */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    #mobile-nav {
+        background: rgba(15, 23, 42, 0.8); /* bg-card with transparency */
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid var(--border-color);
+    }
+    html.light #mobile-nav { background: rgba(255, 255, 255, 0.8); }
+    .nav-btn.active { color: var(--accent-primary); }
+
+    /* Other minor styles for polish */
+    .pulsate-roll { animation: pulsate 2.5s infinite cubic-bezier(0.68, -0.55, 0.27, 1.55); }
+    @keyframes pulsate { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px var(--accent-glow); } 50% { transform: scale(1.03); box-shadow: 0 0 30px var(--accent-glow); } }
+    @keyframes fall { 0% { transform: translateY(-20vh) rotateZ(0deg); } 100% { transform: translateY(120vh) rotateZ(1080deg); } }
+    .confetti { position: absolute; width: 12px; height: 24px; opacity: 0.95; }
+    #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; }
+    @media (max-width: 640px) { #toast-container { bottom: 6rem; left: 1rem; right: 1rem; } }
+    .toast { padding: 1.25rem; border-radius: 0.75rem; color: white; font-semibold; opacity: 0; transform: translateX(120%); transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.21, 1.02, 0.73, 1); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .toast.show { opacity: 1; transform: translateX(0); }
+    .toast-win { background: linear-gradient(to right, #22c55e, #16a34a); } .toast-loss { background: linear-gradient(to right, #ef4444, #dc2626); } .toast-info { background: linear-gradient(to right, #3b82f6, #2563eb); }
+    .tooltip { position: relative; }
+    .tooltip::after { content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-4px); background: var(--bg-card); color: var(--text-main); padding: 0.5rem 1rem; border-radius: 0.5rem; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; white-space: nowrap; border: 1px solid var(--border-color); box-shadow: 0 2px 10px var(--shadow-color); z-index: 10; }
+    .tooltip:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+
+</head>
+<body class="antialiased pb-24 lg:pb-0">
+
+  <div id="loadingScreen" class="fixed inset-0 flex flex-col items-center justify-center z-[10000] transition-opacity duration-1000">
+      <div class="loading-scene">
+        <div class="loading-atom">
+          <div class="core-cube theme-classic"></div>
+          <div class="orbit orbit-1"><div class="electron"><div class="electron-cube theme-classic"></div></div></div>
+          <div class="orbit orbit-2"><div class="electron"><div class="electron-cube theme-classic"></div></div></div>
+          <div class="orbit orbit-3"><div class="electron"><div class="electron-cube theme-classic"></div></div></div>
+        </div>
+      </div>
+      <h2 class="text-3xl font-bold mt-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">Ultimate Dice Lab</h2>
+      <div id="loading-progress-container" class="mt-4"><div id="loading-progress-bar"></div></div>
+      <div id="loadingText" class="mt-2 text-sm text-muted">Initializing Quantum Engine... 0%</div>
+  </div>
+
+  <div id="confetti-container" class="fixed inset-0 pointer-events-none z-[9999]"></div>
+  <div id="toast-container" aria-live="assertive"></div>
+
+  <div id="mainContent" class="max-w-screen-xl mx-auto p-4 md:p-6 opacity-0 transition-opacity duration-500">
+
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-4xl md:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400 drop-shadow text-center md:text-left">Ultimate Dice Lab</h1>
+            <p class="text-muted mt-1 text-center md:text-left">A Feature-Complete Probability Simulation Tool.</p>
+        </div>
+        <div class="flex items-center gap-3 justify-center md:justify-start">
+            <button id="toggleTheme" aria-label="Toggle Theme" class="w-12 h-12 flex items-center justify-center text-xl btn btn-secondary !rounded-lg font-semibold"></button>
+            <button id="helpBtn" aria-label="Help" class="h-12 px-5 bg-emerald-500/90 hover:bg-emerald-500 text-white !rounded-lg font-semibold btn flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                <span class="hidden sm:inline">Help</span>
+            </button>
+        </div>
+    </header>
+    
+    <main class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <!-- Central Column: Always visible -->
+        <section class="lg:col-span-3 space-y-8">
+            <div class="card p-5 flex flex-col items-center">
+                <h3 class="text-lg font-bold mb-4 self-start text-indigo-400 border-b border-border-color pb-3 w-full">🎲 DICE TRAY</h3>
+                <div id="dice-container" class="flex items-center justify-center flex-wrap gap-4 sm:gap-6 min-h-[180px] w-full cursor-pointer" data-tooltip="Swipe or tap to roll"></div>
+                <div id="lastRollText" class="mt-4 w-full text-center font-semibold bg-slate-800/50 p-3 rounded-lg">Last Roll: —</div>
+            </div>
+             <!-- Panels for Desktop View -->
+            <div class="hidden lg:grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div id="desktop-casino-panel"></div>
+                <div id="desktop-stats-panel"></div>
+            </div>
+        </section>
+
+        <!-- Right/Toggleable Column -->
+        <section id="main-panels-container" class="lg:col-span-2 space-y-8">
+             <!-- Panels will be injected here by JS for desktop, or toggled on mobile -->
+        </section>
+    </main>
+  </div>
+    
+  <!-- MOBILE TAB NAVIGATION -->
+  <nav id="mobile-nav" class="lg:hidden fixed bottom-0 left-0 right-0 h-20 grid grid-cols-3 items-center z-50">
+      <button data-tab="roll" class="nav-btn h-full flex flex-col items-center justify-center gap-1 text-muted text-sm active">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          Controls
+      </button>
+      <button data-tab="casino" class="nav-btn h-full flex flex-col items-center justify-center gap-1 text-muted text-sm">
+           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>
+          Casino
+      </button>
+      <button data-tab="stats" class="nav-btn h-full flex flex-col items-center justify-center gap-1 text-muted text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+          Stats
+      </button>
+  </nav>
+
+  <div id="help-modal-container" class="fixed inset-0 flex items-center justify-center p-4 z-[51]">
+    <div id="help-modal-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+    <div id="helpModal" class="card p-6 max-w-xl w-full relative">
+        <h2 class="text-xl font-semibold mb-3 text-indigo-400">How to Use the Lab</h2>
+        <ul class="list-disc pl-5 space-y-2 text-sm text-muted">
+            <li><b>Controls:</b> Select dice type (d4-d20), number of dice (up to 5), and a visual theme. Use Roll, Auto, or Simulate.</li>
+            <li><b>Data Portability:</b> Export your frequency data to a CSV file or save the entire application state to a JSON file. You can import a JSON file later to restore your session.</li>
+            <li><b>Casino Mode:</b> Bet on the sum, odd/even, or high/low outcomes. Your balance is saved automatically in your browser.</li>
+            <li><b>Fairness Test:</b> After 100+ trials, the Chi-Squared (χ²) test checks if your results align with pure probability. A low p-value (p < 0.05) suggests the results are statistically unusual.</li>
+            <li><b>Keyboard Shortcuts:</b> R=Roll, A=Auto, S=Stop, D=Simulate, C=Clear.</li>
+        </ul>
+        <div class="mt-6 text-right">
+            <button id="closeHelp" class="px-4 py-2 rounded-lg btn btn-primary">Got it!</button>
+        </div>
+    </div>
+  </div>
+  
+  <footer class="backdrop-blur-md bg-white/10 border-t border-white/20 text-gray-200 py-6 text-center mt-10">
+    <p class="text-sm drop-shadow-md mb-2">Developed by <span class="font-semibold text-white">Sadeepa Lakshan</span></p>
+    <div class="flex justify-center space-x-6 mb-2 text-gray-300">
+      <a href="https://github.com/sadeepas" target="_blank" class="hover:text-white transition" aria-label="GitHub">
+          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.168 6.839 9.492.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.031-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.338 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.001 10.001 0 0022 12c0-5.523-4.477-10-10-10z" clip-rule="evenodd" /></svg>
+      </a>
+      <a href="https://www.linkedin.com/in/sadeepa-lakshan/" target="_blank" class="hover:text-white transition" aria-label="LinkedIn">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+      </a>
+      <a href="mailto:sadeepapemasiri2@gmai.com" class="hover:text-white transition" aria-label="Email">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/></svg>
+      </a>
+    </div>
+    <p class="text-xs text-gray-300 drop-shadow-sm">© <span id="year"></span> All Rights Reserved</p>
+  </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- State & Config ---
+    const STORAGE_KEY = 'ultimateDiceLab_v9_quantum_mobile';
+    const LB_KEY = 'ultimateDiceLab_leaderboard_v2';
+    let soundEnabled = true, isRolling = false, autoInterval = null;
+    let chart = null;
+    let memoizedWays = {};
+
+    const defaultState = {
+        diceType: 6, diceCount: 2, diceTheme: 'classic',
+        balance: 100, freqs: [], trials: 0,
+        lastRoll: [], betHistory: [],
+    };
+    let state = loadState() || { ...defaultState };
+
+    // --- DOM Elements ---
+    const DOMElements = {
+        loadingScreen: document.getElementById('loadingScreen'), loadingText: document.getElementById('loadingText'), loadingProgressBar: document.getElementById('loading-progress-bar'),
+        mainContent: document.getElementById('mainContent'),
+        diceContainer: document.getElementById('dice-container'), lastRollText: document.getElementById('lastRollText'), 
+        toggleTheme: document.getElementById('toggleTheme'), helpBtn: document.getElementById('helpBtn'), 
+        helpModalContainer: document.getElementById('help-modal-container'), closeHelp: document.getElementById('closeHelp'),
+        mainPanelsContainer: document.getElementById('main-panels-container'), mobileNav: document.getElementById('mobile-nav'),
+        desktopCasinoPanel: document.getElementById('desktop-casino-panel'), desktopStatsPanel: document.getElementById('desktop-stats-panel'),
+    };
+    
+    // --- Panel HTML Templates ---
+    const panelHTML = {
+        roll: `
+            <div class="card p-5 space-y-6">
+              <div>
+                <h3 class="text-lg font-bold text-indigo-400 border-b border-border-color pb-3 mb-4">⚙️ CONTROLS</h3>
+                <div class="grid grid-cols-2 gap-4">
+                  <div><label class="text-sm font-medium text-muted">Dice Type</label><select id="diceType" class="mt-1 w-full p-2 rounded-md bg-slate-800/50 border border-border-color btn"><option value="4">d4</option><option value="6" selected>d6</option><option value="8">d8</option><option value="10">d10</option><option value="12">d12</option><option value="20">d20</option></select></div>
+                  <div><label class="text-sm font-medium text-muted"># of Dice</label><select id="diceCount" class="mt-1 w-full p-2 rounded-md bg-slate-800/50 border border-border-color btn"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></div>
+                  <div class="col-span-2"><label class="text-sm font-medium text-muted">Dice Theme</label><select id="diceTheme" class="mt-1 w-full p-2 rounded-md bg-slate-800/50 border border-border-color btn"><option value="classic">Classic</option><option value="neon">Neon</option><option value="metallic">Metallic</option></select></div>
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-3">
+                  <button id="rollBtn" class="col-span-3 text-lg px-3 py-3 rounded-md font-semibold btn btn-primary pulsate-roll">Roll (R)</button>
+                  <button id="autoBtn" class="px-3 py-2 rounded-md btn btn-secondary">Auto (A)</button>
+                  <button id="stopBtn" class="px-3 py-2 bg-rose-600/80 hover:bg-rose-600/100 text-white rounded-md btn col-span-2">Stop (S)</button>
+                </div>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-indigo-400 border-b border-border-color pb-3 mb-4">⚡ SIMULATION & DATA</h3>
+                <input type="number" id="trialsInput" class="w-full p-2 rounded-md bg-slate-800/50 border border-border-color" value="1000">
+                <button id="simulateBtn" class="mt-2 w-full px-3 py-2 bg-emerald-500/90 hover:bg-emerald-500 text-white rounded-md font-semibold btn">Run Simulation (D)</button>
+                <div class="mt-3 grid grid-cols-3 gap-2">
+                  <button id="downloadCSV" class="px-3 py-2 rounded-md btn btn-secondary tooltip" data-tooltip="Download frequency data as CSV">⬇ CSV</button>
+                  <button id="exportJSON" class="px-3 py-2 rounded-md btn btn-secondary tooltip" data-tooltip="Export app state as JSON">💾 JSON</button>
+                  <label for="importJSON" class="px-3 py-2 rounded-md btn btn-secondary cursor-pointer tooltip text-center" data-tooltip="Import app state from JSON">📤 Import</label>
+                  <input type="file" id="importJSON" accept=".json" class="hidden">
+                </div>
+              </div>
+               <div>
+                 <h3 class="text-lg font-bold text-indigo-400 border-b border-border-color pb-3 mb-4">🔧 SETTINGS</h3>
+                 <div class="grid grid-cols-2 gap-2">
+                    <button id="clearBtn" class="px-3 py-2 rounded-md btn btn-secondary tooltip" data-tooltip="Reset statistics and dice">♻️ Clear (C)</button>
+                    <button id="toggleSound" class="px-3 py-2 rounded-md btn btn-secondary">🔊 Sound: On</button>
+                 </div>
+               </div>
+            </div>`,
+        casino: `
+            <div class="card p-5">
+                <h3 class="text-lg font-bold text-amber-400 border-b border-border-color pb-3">🎰 CASINO MODE</h3>
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    <select id="betType" class="p-2 rounded-md bg-slate-800/50 border border-border-color btn"><option value="sum">Sum</option><option value="odd">Odd</option><option value="even">Even</option><option value="high">High</option><option value="low">Low</option></select>
+                    <input id="betValue" type="number" class="p-2 rounded-md bg-slate-800/50 border border-border-color" value="7">
+                </div>
+                <input id="betAmt" type="number" class="mt-2 w-full p-2 rounded-md bg-slate-800/50 border border-border-color" value="10">
+                <button id="placeBet" class="mt-2 w-full px-3 py-2 bg-amber-400 text-black rounded-md font-semibold btn">Place Bet & Roll</button>
+                <div class="mt-3 flex justify-between items-center"><span class="font-semibold">Balance:</span><strong id="balance" class="text-2xl">100</strong></div>
+                <div class="mt-3">
+                    <h4 class="text-xs font-bold text-muted uppercase">Bet History</h4>
+                    <ul id="betHistory" class="text-xs text-muted space-y-1 mt-1 max-h-24 overflow-y-auto pr-2"><li>No bets yet.</li></ul>
+                </div>
+            </div>`,
+        stats: `
+            <div class="space-y-8">
+                <div class="card p-5">
+                    <h3 class="text-lg font-bold mb-4 text-indigo-400 border-b border-border-color pb-3">📊 STATISTICS</h3>
+                    <div class="grid grid-cols-3 gap-3 text-center">
+                        <div class="p-2 rounded-lg bg-slate-800/50 tooltip" data-tooltip="Total rolls performed"><div class="text-xs text-muted">Trials</div><div id="trialsCount" class="font-bold text-xl">0</div></div>
+                        <div class="p-2 rounded-lg bg-slate-800/50 tooltip" data-tooltip="Average sum per roll"><div class="text-xs text-muted">Mean</div><div id="mean" class="font-bold text-xl">—</div></div>
+                        <div class="p-2 rounded-lg bg-slate-800/50 tooltip" data-tooltip="Most frequent sum"><div class="text-xs text-muted">Mode</div><div id="mode" class="font-bold text-xl">—</div></div>
+                    </div>
+                    <div class="mt-4">
+                        <h4 class="text-xs font-bold text-muted uppercase">Fairness Test (Chi-Squared)</h4>
+                        <div id="chiSquaredTest" class="text-sm mt-1 p-2 rounded-md bg-slate-800/50">Run >100 trials to see analysis.</div>
+                    </div>
+                </div>
+                <div class="card p-5">
+                    <h3 class="text-lg font-bold mb-4 text-indigo-400 border-b border-border-color pb-3">🔢 FREQUENCY TALLY</h3>
+                    <div id="tally-container" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-6 gap-2 max-h-48 overflow-y-auto pr-2"></div>
+                </div>
+                <div class="card p-5">
+                    <h3 class="text-lg font-bold text-indigo-400 border-b border-border-color pb-3">📈 FREQUENCY DISTRIBUTION</h3>
+                    <div class="mt-4 bg-slate-900/50 p-2 rounded-lg"><canvas id="chart"></canvas></div>
+                    <p class="text-xs text-center text-muted mt-3">Compares experimental results (bars) vs. predicted outcomes (line).</p>
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                         <button id="saveLB" class="w-full px-3 py-2 rounded-md text-sm btn btn-secondary">Save Score</button>
+                         <button id="saveChartBtn" class="w-full px-3 py-2 rounded-md text-sm btn btn-secondary">💾 Save Chart</button>
+                    </div>
+                </div>
+                <div class="card p-5">
+                    <h3 class="text-lg font-bold text-indigo-400 border-b border-border-color pb-3">🏆 LEADERBOARD</h3>
+                    <ul id="leaderboard" class="mt-2 space-y-2 text-sm"><li>No entries yet.</li></ul>
+                </div>
+            </div>`
+    };
+
+    // --- Panel & Element Management ---
+    let dynamicElements = {};
+    function injectPanels() {
+        const createPanel = (id, content) => `<div id="${id}" class="tab-panel" data-tab-content="${id.split('-')[0]}">${content}</div>`;
+        DOMElements.mainPanelsContainer.innerHTML = [
+            createPanel('roll-panel', panelHTML.roll),
+            createPanel('casino-panel', panelHTML.casino),
+            createPanel('stats-panel', panelHTML.stats)
+        ].join('');
+
+        DOMElements.desktopCasinoPanel.innerHTML = panelHTML.casino;
+        DOMElements.desktopStatsPanel.innerHTML = panelHTML.stats;
+
+        // Cache all dynamic elements
+        const ids = ["diceType", "diceCount", "diceTheme", "rollBtn", "autoBtn", "stopBtn", "clearBtn", "simulateBtn", "trialsInput", "trialsCount", "mean", "mode", "betType", "betValue", "betAmt", "placeBet", "balance", "toggleSound", "betHistory", "chiSquaredTest", "downloadCSV", "exportJSON", "importJSON", "saveLB", "leaderboard", "tally-container", "saveChartBtn"];
+        ids.forEach(id => {
+            const mobileEl = DOMElements.mainPanelsContainer.querySelector(`#${id}`);
+            const desktopEl = document.querySelector(`#desktop-casino-panel #${id}, #desktop-stats-panel #${id}`);
+            dynamicElements[id] = [mobileEl, desktopEl].filter(Boolean); // Store all found elements
+        });
+        dynamicElements['chart'] = [DOMElements.mainPanelsContainer.querySelector('#chart').getContext('2d'), DOMElements.desktopStatsPanel.querySelector('#chart').getContext('2d')];
+    }
+
+    function getElement(id) { return dynamicElements[id] ? dynamicElements[id][0] : null; }
+    function getElements(id) { return dynamicElements[id] || []; }
+
+    // --- Cryptographically Secure Randomization ---
+    function secureRandInt(min, max) { const range = max - min + 1; const buf = new Uint32Array(1); let rand; do { crypto.getRandomValues(buf); rand = buf[0] / (0xFFFFFFFF + 1); } while (rand === 1.0); return min + Math.floor(rand * range); }
+    
+    // --- UI/UX & Effects ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) { if (!soundEnabled || audioCtx.state === 'suspended') audioCtx.resume(); if (!soundEnabled) return; const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); g.gain.value = 0.0001; o.start(); const now = audioCtx.currentTime; if (type === 'roll') { o.type = 'triangle'; o.frequency.setValueAtTime(400, now); g.gain.exponentialRampToValueAtTime(0.08, now + 0.01); o.frequency.exponentialRampToValueAtTime(80, now + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25); } else if (type === 'win') { o.type = 'sine'; o.frequency.setValueAtTime(900, now); g.gain.exponentialRampToValueAtTime(0.1, now + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25); o.frequency.exponentialRampToValueAtTime(1200, now + 0.25); } else if (type === 'loss') { o.type = 'sawtooth'; o.frequency.setValueAtTime(250, now); g.gain.exponentialRampToValueAtTime(0.06, now + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.3); o.frequency.exponentialRampToValueAtTime(100, now + 0.3); } o.stop(now + 0.35); }
+    function showToast(message, type = 'info') { const cont = document.getElementById('toast-container'); const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.textContent = message; cont.appendChild(toast); setTimeout(() => toast.classList.add('show'), 10); setTimeout(() => { toast.classList.remove('show'); toast.addEventListener('transitionend', () => toast.remove()); }, 4000); }
+    function animateCountUp(elements, end, duration = 600) { elements.forEach(el => { if (!el) return; let start = parseFloat(el.textContent.replace(/[^0-9.-]+/g,"")) || 0; if (start === end) return; let startTime = null; const anim = (time) => { if (!startTime) startTime = time; const prog = Math.min((time - startTime) / duration, 1); const curr = prog * (end - start) + start; el.textContent = el.id === 'mean' ? curr.toFixed(2) : Math.floor(curr).toLocaleString(); if (prog < 1) requestAnimationFrame(anim); }; requestAnimationFrame(anim); }); }
+    function triggerConfetti() { const cont = document.getElementById('confetti-container'); for (let i = 0; i < 150; i++) { const conf = document.createElement('div'); conf.className = 'confetti'; conf.style.left = `${Math.random() * 100}vw`; conf.style.backgroundColor = `hsl(${Math.random() * 360}, 90%, 70%)`; conf.style.animation = `fall ${2 + Math.random() * 3}s linear ${Math.random() * 2}s forwards`; cont.appendChild(conf); setTimeout(() => conf.remove(), 6000); } }
+
+    // --- Core Logic ---
+    function buildPipFace(faceEl, value) { const p = {1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]}; if(!p[value]) return; p[value].forEach(pos=>{const pip=document.createElement('div'); pip.className='pip'; pip.style.gridRow=Math.ceil(pos/3); pip.style.gridColumn=((pos-1)%3)+1; faceEl.appendChild(pip);}); }
+    const faceTransforms = {1:{x:0,y:0}, 2:{x:0,y:-90}, 3:{x:0,y:180}, 4:{x:0,y:90}, 5:{x:-90,y:0}, 6:{x:90,y:0}};
+    function buildDice() { DOMElements.diceContainer.innerHTML = ''; for (let i = 0; i < state.diceCount; i++) { const wrap = document.createElement('div'); wrap.className = 'cube-wrapper'; const dice = document.createElement('div'); const shadow = document.createElement('div'); shadow.className = 'dice-shadow'; if (state.diceType == 6) { dice.className = `cube theme-${state.diceTheme}`; dice.id = `dice-${i}`; for(let j=1; j<=6; j++){ const face = document.createElement('div'); face.className = `face f${j}`; buildPipFace(face, j); dice.appendChild(face); }} else { dice.className = `poly-dice theme-${state.diceTheme}`; dice.id = `dice-${i}`; dice.textContent = `d${state.diceType}`; } wrap.appendChild(dice); wrap.appendChild(shadow); DOMElements.diceContainer.appendChild(wrap); } }
+    function animateDie(wrapper, el, res) { return new Promise(resolve => { wrapper.classList.add('rolling'); const [rx, ry, rz] = [360 * secureRandInt(3, 5), 360 * secureRandInt(3, 5), 360 * secureRandInt(3, 5)]; if (state.diceType == 6) { const t = faceTransforms[res]; el.style.transform = `rotateX(${t.x + rx}deg) rotateY(${t.y + ry}deg) rotateZ(${rz}deg)`; } else { el.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`; setTimeout(() => el.textContent = res, 700); } setTimeout(() => { wrapper.classList.remove('rolling'); resolve(); }, 1500); }); }
+    async function handleRoll() { if (isRolling) return; isRolling = true; playSound('roll'); const results = Array.from({ length: state.diceCount }, () => secureRandInt(1, state.diceType)); const wrappers = Array.from(DOMElements.diceContainer.querySelectorAll('.cube-wrapper')); const promises = results.map((res, i) => animateDie(wrappers[i], document.getElementById(`dice-${i}`), res)); await Promise.all(promises); updateStateWithRoll(results); render(); isRolling = false; return { results, sum: results.reduce((a, b) => a + b, 0) }; }
+    function updateStateWithRoll(results) { state.lastRoll = results; const sum = results.reduce((a, b) => a + b, 0); const freqIndex = sum - state.diceCount; state.freqs[freqIndex] = (state.freqs[freqIndex] || 0) + 1; state.trials++; saveState(); }
+    
+    async function runSimulation(n) { for (let i = 0; i < n; i++) { const sum = Array.from({ length: state.diceCount }, () => secureRandInt(1, state.diceType)).reduce((a, b) => a + b, 0); const freqIndex = sum - state.diceCount; state.freqs[freqIndex] = (state.freqs[freqIndex] || 0) + 1; state.trials++; if (i % 1000 === 0) await new Promise(r => setTimeout(r, 1)); } render(); saveState(); showToast(`Simulated ${n} trials!`, 'info'); }
+
+    async function placeBet() { const amt = parseInt(getElement('betAmt').value) || 0; if (amt <= 0 || amt > state.balance) return showToast("Invalid bet amount.", "loss"); state.balance -= amt; const { sum } = await handleRoll(); const type = getElement('betType').value; const value = parseInt(getElement('betValue').value) || 0; const mid = (state.diceCount * (state.diceType + 1)) / 2; let win = false, payout = 0; if (type === 'sum' && sum === value) { win = true; payout = amt * (Math.pow(state.diceType, state.diceCount) / getWays(sum, state.diceType, state.diceCount)) * 0.9; } else if (type === 'odd' && sum % 2 !== 0) { win = true; payout = amt * 1.9; } else if (type === 'even' && sum % 2 === 0) { win = true; payout = amt * 1.9; } else if (type === 'high' && sum > mid) { win = true; payout = amt * 1.9; } else if (type === 'low' && sum < mid) { win = true; payout = amt * 1.9; } const betMessage = `Bet \$${amt} on ${type}${type === 'sum' ? ' ' + value : ''}. Rolled ${sum}.`; if (win) { payout = Math.round(payout); state.balance += payout; playSound('win'); showToast(`You won \$${payout - amt}!`, 'win'); if (payout > amt * 5) triggerConfetti(); state.betHistory.unshift({ message: betMessage, outcome: 'win', amount: `+\$${payout - amt}` }); } else { playSound('loss'); showToast("You lost.", 'loss'); state.betHistory.unshift({ message: betMessage, outcome: 'loss', amount: `-\$${amt}` }); } if (state.betHistory.length > 5) state.betHistory.pop(); render(); }
+    
+    // --- Stats & Rendering ---
+    function getWays(sum, sides, numDice) { const key = `${sum}-${sides}-${numDice}`; if (memoizedWays[key] !== undefined) return memoizedWays[key]; if (sum < numDice || sum > numDice * sides) return 0; if (numDice === 0) return sum === 0 ? 1 : 0; let total = 0; for (let i = 1; i <= sides; i++) total += getWays(sum - i, sides, numDice - 1); return memoizedWays[key] = total; }
+    function getProbabilityOfSum(sum, sides, numDice) { return getWays(sum, sides, numDice) / Math.pow(sides, numDice); }
+    function calculateChiSquared() { if (state.trials < 100) return "Run >100 trials for fairness analysis."; let chi2 = 0; for (let i = 0; i < state.freqs.length; i++) { const observed = state.freqs[i] || 0; const expected = state.trials * getProbabilityOfSum(i + state.diceCount, state.diceType, state.diceCount); if (expected > 5) chi2 += Math.pow(observed - expected, 2) / expected; } const df = state.freqs.filter(f => (f||0) > 0).length - 1; if (df <= 0) return "Not enough data variety for test."; const critical = {1:3.84, 5:11.07, 10:18.31, 20:31.41, 30:43.77}; const criticalValue = critical[Object.keys(critical).reverse().find(k => df >= k)] || 999; const result = `<span class="font-bold">χ²=${chi2.toFixed(2)}</span> (df=${df}). `; return result + (chi2 > criticalValue ? "Data is statistically unusual (p < 0.05)." : "Data aligns with fair dice (p > 0.05)."); }
+
+    function render() {
+        animateCountUp(getElements('trialsCount'), state.trials); animateCountUp(getElements('balance'), state.balance);
+        let sum = 0, modeFreq = -1, modeVal = '—';
+        for(let i=0; i<state.freqs.length; i++) { const freq = state.freqs[i] || 0; const val = i + state.diceCount; sum += val * freq; if(freq > modeFreq) { modeFreq = freq; modeVal = val; } }
+        getElements('mode').forEach(el => el.textContent = modeVal);
+        if (state.trials > 0) animateCountUp(getElements('mean'), sum / state.trials); else getElements('mean').forEach(el => el.textContent = '—');
+        if (state.lastRoll.length > 0) { const rollSum = state.lastRoll.reduce((a, b) => a + b, 0); const prob = getProbabilityOfSum(rollSum, state.diceType, state.diceCount); DOMElements.lastRollText.innerHTML = `Last Roll: ${state.lastRoll.join(' + ')} = <strong>${rollSum}</strong> <span class="text-xs text-muted">(${(prob * 100).toFixed(2)}% chance)</span>`; }
+        getElements('chiSquaredTest').forEach(el => el.innerHTML = calculateChiSquared());
+        renderBetHistory(); renderTally(); renderLeaderboard(); renderChart();
+    }
+    function renderBetHistory() { const html = state.betHistory.length === 0 ? '<li>No bets yet.</li>' : state.betHistory.map(bet => `<li class="flex justify-between items-center ${bet.outcome === 'win' ? 'text-green-400' : 'text-red-400'}"><span>${bet.message}</span><span class="font-bold">${bet.amount}</span></li>`).join(''); getElements('betHistory').forEach(el => el.innerHTML = html); }
+    function renderLeaderboard() { const lb = loadLB().slice(0, 5); const html = lb.length === 0 ? '<li class="text-muted">No scores saved yet.</li>' : lb.map((entry, i) => `<li class="flex justify-between items-center bg-slate-800/50 p-2 rounded-md"><span>#${i+1} ${entry.name}</span><span class="font-bold">${entry.balance.toLocaleString()}</span></li>`).join(''); getElements('leaderboard').forEach(el => el.innerHTML = html); }
+    function renderTally() { let html = ''; for (let i = 0; i < state.freqs.length; i++) { const sumValue = i + state.diceCount; const count = state.freqs[i] || 0; const percentage = state.trials ? (count / state.trials * 100).toFixed(1) : '0.0'; html += `<div class="p-2 bg-slate-800/50 rounded-lg text-center"><div class="font-bold text-lg">${sumValue}</div><div class="text-xs text-muted">${count} (${percentage}%)</div></div>`; } getElements('tally-container').forEach(el => el.innerHTML = html); }
+    function renderChart() {
+        const labels = Array.from({ length: state.freqs.length }, (_, i) => i + state.diceCount);
+        const theoreticalData = labels.map(label => getProbabilityOfSum(label, state.diceType, state.diceCount) * state.trials);
+        const style = getComputedStyle(document.body);
+        
+        dynamicElements['chart'].forEach(ctx => {
+            if (ctx.chart) ctx.chart.destroy();
+            const barGradient = ctx.createLinearGradient(0,0,0, ctx.canvas.height);
+            barGradient.addColorStop(0, 'rgba(99, 102, 241, 0.7)'); barGradient.addColorStop(1, 'rgba(79, 70, 229, 0.4)');
+            ctx.chart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [ { label: 'Experimental', data: state.freqs, backgroundColor: barGradient, borderColor: style.getPropertyValue('--accent-primary'), hoverBackgroundColor: 'rgba(99, 102, 241, 0.9)', borderWidth: 1 }, { label: 'Theoretical', data: theoreticalData, type: 'line', borderColor: style.getPropertyValue('--accent-secondary'), backgroundColor: style.getPropertyValue('--accent-secondary'), fill: false, pointRadius: 0, tension: 0.4, borderWidth: 3 } ] }, options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, grid: { color: 'rgba(100, 116, 139, 0.2)' }, ticks: {color: style.getPropertyValue('--text-muted')}, title: { display: true, text: 'Frequency Count', color: style.getPropertyValue('--text-muted') } }, x: { grid: { color: 'rgba(100, 116, 139, 0.1)' }, ticks: {color: style.getPropertyValue('--text-muted')}, title: { display: true, text: 'Sum of Dice', color: style.getPropertyValue('--text-muted') } } }, plugins: { legend: { labels: { color: style.getPropertyValue('--text-main') } }, tooltip: { enabled: true, backgroundColor: 'rgba(2, 6, 23, 0.9)', titleColor: '#fff', bodyColor: '#cbd5e1', footerColor: '#fff', borderColor: style.getPropertyValue('--border-color'), borderWidth: 1, borderRadius: 8, padding: 12, callbacks: { footer: (items) => { const delta = (state.freqs[items[0].dataIndex]||0) - theoreticalData[items[0].dataIndex]; const deltaColor = delta >= 0 ? '#22c55e' : '#ef4444'; Chart.defaults.plugins.tooltip.footer.color = deltaColor; return `Delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)}`; } } } } } });
+        });
+    }
+
+    // --- Data Export/Import ---
+    function downloadCSV() { const rows = [['Sum','Count']]; for(let s=0; s<state.freqs.length; s++) rows.push([s + state.diceCount, state.freqs[s] || 0]); const csv = rows.map(r=>r.join(',')).join('\n'); const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='dice_data.csv'; a.click(); URL.revokeObjectURL(url); }
+    function exportJSON() { const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='dice_lab_state.json'; a.click(); URL.revokeObjectURL(url); }
+    function importJSONFile(file) { if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const imported = JSON.parse(e.target.result); state = { ...defaultState, ...imported }; getElements('diceType').forEach(el => el.value = state.diceType); getElements('diceCount').forEach(el => el.value = state.diceCount); getElements('diceTheme').forEach(el => el.value = state.diceTheme); resetState(false); showToast("State imported successfully!", 'info'); } catch (err) { showToast("Invalid JSON file.", 'loss'); } }; reader.readAsText(file); }
+
+    // --- Initialization & Event Listeners ---
+    function saveState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.error("Failed to save state", e); } }
+    function loadState() { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+    function saveLBData(data) { try { localStorage.setItem(LB_KEY, JSON.stringify(data)); } catch (e) {} }
+    function loadLB() { try { const s = localStorage.getItem(LB_KEY); return s ? JSON.parse(s) : []; } catch (e) { return []; } }
+    function resetState(fullReset = true) { const oldBalance = state.balance; const oldHistory = state.betHistory; const maxVal = state.diceType * state.diceCount; memoizedWays = {}; state.freqs = Array(maxVal - state.diceCount + 1).fill(0); state.trials = 0; state.lastRoll = []; if (fullReset) { state.balance = 100; state.betHistory = []; } else { state.balance = oldBalance; state.betHistory = oldHistory; } buildDice(); render(); saveState(); }
+    
+    function setupEventListeners() {
+        // Use event delegation for dynamically added elements
+        document.body.addEventListener('change', e => {
+            if (e.target.matches('#diceType, #diceCount')) {
+                const key = e.target.id.replace('dice', '').toLowerCase();
+                state[key] = parseInt(e.target.value);
+                // Sync values between mobile and desktop inputs
+                getElements(e.target.id).forEach(el => el.value = state[key]);
+                resetState(false);
+            }
+            if (e.target.matches('#diceTheme')) {
+                state.diceTheme = e.target.value;
+                getElements('diceTheme').forEach(el => el.value = state.diceTheme);
+                buildDice();
+            }
+            if (e.target.matches('#importJSON')) importJSONFile(e.target.files[0]);
+        });
+        
+        document.body.addEventListener('click', e => {
+            const targetId = e.target.closest('[id]')?.id;
+            if (!targetId) return;
+
+            const actions = {
+                rollBtn: handleRoll, placeBet: placeBet,
+                clearBtn: () => { resetState(); showToast("State Cleared", "info"); },
+                simulateBtn: () => runSimulation(parseInt(getElement('trialsInput').value) || 1000),
+                autoBtn: () => { if (autoInterval) return; autoInterval = setInterval(handleRoll, 1800); showToast("Auto-roll started", "info"); },
+                stopBtn: () => { clearInterval(autoInterval); autoInterval = null; showToast("Auto-roll stopped", "info"); },
+                downloadCSV: downloadCSV, exportJSON: exportJSON,
+                saveLB: () => { const name = prompt("Enter name for leaderboard:"); if(!name) return; const lb = loadLB(); lb.push({name, balance: state.balance}); lb.sort((a,b)=>b.balance - a.balance); saveLBData(lb.slice(0,10)); renderLeaderboard(); },
+                saveChartBtn: () => { const a = document.createElement('a'); a.href = dynamicElements.chart[0].chart.toBase64Image(); a.download = 'dice-chart.png'; a.click(); },
+                toggleSound: () => { soundEnabled = !soundEnabled; getElements('toggleSound').forEach(el => el.textContent = `🔊 Sound: ${soundEnabled ? 'On' : 'Off'}`); }
+            };
+            if (actions[targetId]) actions[targetId]();
+        });
+
+        // Global listeners
+        DOMElements.toggleTheme.addEventListener('click', () => { document.documentElement.classList.toggle('dark'); DOMElements.toggleTheme.textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙'; renderChart(); });
+        DOMElements.helpBtn.addEventListener('click', () => DOMElements.helpModalContainer.classList.add('visible'));
+        DOMElements.closeHelp.addEventListener('click', () => DOMElements.helpModalContainer.classList.remove('visible'));
+        DOMElements.helpModalContainer.addEventListener('click', (e) => { if(e.target === DOMElements.helpModalContainer) DOMElements.helpModalContainer.classList.remove('visible'); });
+        DOMElements.diceContainer.addEventListener('click', handleRoll);
+
+        // Mobile Nav
+        DOMElements.mobileNav.addEventListener('click', e => {
+            const navBtn = e.target.closest('.nav-btn');
+            if (!navBtn) return;
+            const tab = navBtn.dataset.tab;
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            navBtn.classList.add('active');
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelector(`.tab-panel[data-tab-content="${tab}"]`).classList.add('active');
+        });
+
+        window.addEventListener('keydown', (e) => { if (document.activeElement.tagName === 'INPUT') return; const k = e.key.toLowerCase(); if (k === 'r') getElement('rollBtn').click(); if (k === 'd') getElement('simulateBtn').click(); if (k === 'c') getElement('clearBtn').click(); if (k === 'a') getElement('autoBtn').click(); if (k === 's') getElement('stopBtn').click(); if (k === 'escape' && DOMElements.helpModalContainer.classList.contains('visible')) DOMElements.helpModalContainer.classList.remove('visible'); });
+    }
+
+    function initializeApp() {
+        injectPanels();
+        document.getElementById('roll-panel').classList.add('active'); // Set default tab
+        
+        getElements('diceType').forEach(el => el.value = state.diceType);
+        getElements('diceCount').forEach(el => el.value = state.diceCount);
+        getElements('diceTheme').forEach(el => el.value = state.diceTheme);
+        DOMElements.toggleTheme.textContent = document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
+        
+        resetState(false); 
+        setupEventListeners();
+        
+        DOMElements.mainContent.classList.remove('opacity-0');
+        DOMElements.loadingScreen.style.opacity = '0';
+        DOMElements.loadingScreen.addEventListener('transitionend', () => DOMElements.loadingScreen.style.display = 'none');
+    }
+
+    // --- Loading Sequence ---
+    let counter = 0;
+    document.querySelectorAll('.core-cube, .electron-cube').forEach(cube => { for(let i=1; i<=6; i++) { const face = document.createElement('div'); face.className = `face f${i}`; buildPipFace(face, i); cube.appendChild(face); } });
+    const interval = setInterval(() => { counter++; DOMElements.loadingText.textContent = `Initializing Quantum Engine... ${counter}%`; DOMElements.loadingProgressBar.style.width = `${counter}%`; if (counter >= 100) { clearInterval(interval); initializeApp(); } }, 20);
+    
+    // Auto update year in footer
+    document.getElementById("year").textContent = new Date().getFullYear();
+});
+</script>
+</body>
+</html>
